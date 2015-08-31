@@ -354,10 +354,13 @@ class fORMRelated
 			$star_to_one  = self::$cache['*-to-one::' . $table . '::' . $related_table . '::' . $route];
 		} else {
 			$star_to_one_relationships = fORMSchema::getRoutes($schema, $table, $related_table, '*-to-one');
-			foreach ($star_to_one_relationships as $star_to_one_relationship) {
-				if ($relationship['column'] == $star_to_one_relationship['column']) {
-					$star_to_one = TRUE;
-					break;
+
+			if (fORMSchema::isOneToOne($schema, $table, $related_table, $route)) {
+				foreach ($star_to_one_relationships as $star_to_one_relationship) {
+					if ($relationship['column'] == $star_to_one_relationship['column']) {
+						$star_to_one = TRUE;
+						break;
+					}
 				}
 			}
 
