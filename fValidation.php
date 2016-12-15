@@ -873,7 +873,7 @@ class fValidation
 	{
             
 		foreach ($this->samecheck_rules as $name => $fields) {
-			if (vRequest::get($fields['field1']) != vRequest::get($fields['field2']))   ` {
+			if (fRequest::get($fields['field1']) != fRequest::get($fields['field2']))   ` {
 				$messages[$name] = self::compose(
 					'%s'.fValidationException::formatField($this->makeFieldName($fields["field2"])).'both fields need to be the same.',
 					fValidationException::formatField($this->makeFieldName($fields['field1']))
