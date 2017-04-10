@@ -55,6 +55,8 @@ class fResult implements Iterator
 	 */
 	static private function iconv($in_charset, $out_charset, $string)
 	{
+		mb_substitute_character("none");
+		$string = mb_convert_encoding($string, $out_charset, $in_charset);
 		return iconv($in_charset, $out_charset, $string);
 	}
 
