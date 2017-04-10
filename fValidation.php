@@ -184,7 +184,13 @@ class fValidation
 	 * @var array
 	 */
 	private $valid_values_rules = array();
-
+	
+	/**
+	 * Check if values are the same.
+	 * 
+	 * @var array
+	 */
+	 private $samecheck_rules = array()
 
 	/**
 	 * All requests that hit this method should be requests for callbacks
@@ -450,7 +456,26 @@ class fValidation
 
 		return $this;
 	}
-
+	
+	/**
+	 * Adds a check if the same on set of fileds
+	 * 
+	 * @param string name
+	 * @param string field1
+	 * @param string field2
+	 * @return fValidation The validation object, to allow for  method chaining
+	 */
+	 public function addSameCheckRule($name, $field1, $field2)
+	{
+		if (!isset($this->samecheck_rules[$name])) {
+			$this->samecheck_rules[$name] = array();
+		}
+		$this->samecheck_rules[$name] = array(
+			'field1' => $field1,
+			'field2'  => $field2
+		);
+		return $this;
+	}
 
 	/**
 	 * Adds a call to [http://php.net/preg_replace `preg_replace()`] for each message
@@ -838,7 +863,25 @@ class fValidation
 		}
 	}
 
-
+	/**
+	 * Runs all callback validation rules
+	 * 
+	 * @param  array &$messages  The messages to display to the user
+	 * @return void
+	 */
+	private function checkSameFields(&$messages)
+	{
+            
+		foreach ($this->samecheck_rules as $name => $fields) {
+			if (fRequest::get($fields['field1']) != fRequest::get($fields['field2']))   ` {
+				$messages[$name] = self::compose(
+					'%s'.fValidationException::formatField($this->makeFieldName($fields["field2"])).'both fields need to be the same.',
+					fValidationException::formatField($this->makeFieldName($fields['field1']))
+				);
+                    }
+		}
+	}
+	
 	/**
 	 * Joins a multi-dimensional array recursively
 	 *
@@ -1013,6 +1056,7 @@ class fValidation
 		$this->checkDateFields($messages);
 		$this->checkRegexRules($messages);
 		$this->checkCallbackRules($messages);
+		$this->checkSameFields($messages);
 
 		if ($this->regex_replacements) {
 			$messages = preg_replace(
