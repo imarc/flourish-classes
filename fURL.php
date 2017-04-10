@@ -18,6 +18,8 @@ class fURL
 {
 	// The following constants allow for nice looking callbacks to static methods
 	const get                   = 'fURL::get';
+	const getProtocol           = 'fURL::getProtocol';
+	const getJustDomain         = 'fURL::getjustDomain';
 	const getDomain             = 'fURL::getDomain';
 	const getQueryString        = 'fURL::getQueryString';
 	const getWithQueryString    = 'fURL::getWithQueryString';
@@ -40,7 +42,30 @@ class fURL
 		return preg_replace('#\?.*$#D', '', $_SERVER['REQUEST_URI']);
 	}
 
-
+	
+	/**
+	* returns the protocol i.e the prefix. https or http
+	*
+	* @return string The protocol prefix 'https://' or 'http://'
+	**/
+	static public function getProtocol()
+	{
+		if (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] == 'on') {
+			return 'https://';
+		} else {
+			return 'http://';
+		}
+	}
+	
+	/**
+	*
+	**/
+	static public function getJustDomain()
+	{
+		return $_SERVER['SERVER_NAME'];
+	}
+	
+	
 	/**
 	 * Returns the current domain name, with protcol prefix. Port will be included if not 80 for HTTP or 443 for HTTPS.
 	 *

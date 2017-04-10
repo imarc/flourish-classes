@@ -1,3 +1,21 @@
+Skip to content
+This repository
+Search
+Pull requests
+Issues
+Gist
+ @velusopensource
+ Unwatch 1
+  Star 0
+ Fork 74 velusopensource/flourish-classes
+forked from imarc/flourish-classes
+ Code  Pull requests 0  Projects 0  Pulse  Graphs  Settings
+Tree: 851b71deaf Find file Copy pathflourish-classes/fValidation.php
+851b71d  4 minutes ago
+@velusopensource velusopensource Update fValidation.php
+3 contributors @jeffturcotte @wbond @velusopensource
+RawBlameHistory     
+1117 lines (972 sloc)  30.3 KB
 <?php
 /**
  * Provides validation routines for standalone forms, such as contact forms
@@ -24,7 +42,6 @@ class fValidation
 	static protected function compose($message)
 	{
 		$args = array_slice(func_get_args(), 1);
-
 		if (class_exists('fText', FALSE)) {
 			return call_user_func_array(
 				array('fText', 'compose'),
@@ -34,8 +51,6 @@ class fValidation
 			return vsprintf($message, $args);
 		}
 	}
-
-
 	/**
 	 * Check if a field has a value
 	 *
@@ -57,8 +72,6 @@ class fValidation
 		}
 		return FALSE;
 	}
-
-
 	/**
 	 * Compares the message matching strings by longest first so that the longest matches are made first
 	 *
@@ -76,8 +89,6 @@ class fValidation
 		}
 		return 1;
 	}
-
-
 	/**
 	 * Returns `TRUE` for non-empty strings, numbers, objects, empty numbers and string-like numbers (such as `0`, `0.0`, `'0'`)
 	 *
@@ -89,103 +100,93 @@ class fValidation
 		if ((!is_array($value) && !is_string($value) && !is_object($value) && !is_numeric($value)) || (!is_array($value) && !strlen(trim($value)))) {
 			return FALSE;
 		}
-
 		return TRUE;
 	}
-
-
 	/**
 	 * Rules that run through a callback
 	 *
 	 * @var array
 	 */
 	private $callback_rules = array();
-
 	/**
 	 * Rules for conditionally requiring fields
 	 *
 	 * @var array
 	 */
 	private $conditional_rules = array();
-
 	/**
 	 * Fields that should be valid dates
 	 *
 	 * @var array
 	 */
 	private $date_fields = array();
-
 	/**
 	 * An array for custom field names
 	 *
 	 * @var array
 	 */
 	private $field_names = array();
-
 	/**
 	 * File upload rules
 	 *
 	 * @var array
 	 */
 	private $file_upload_rules = array();
-
 	/**
 	 * An array for ordering the fields in the resulting message
 	 *
 	 * @var array
 	 */
 	private $message_order = array();
-
 	/**
 	 * Rules for at least one field of multiple having a value
 	 *
 	 * @var array
 	 */
 	private $one_or_more_rules = array();
-
 	/**
 	 * Rules for exactly one field of multiple having a value
 	 *
 	 * @var array
 	 */
 	private $only_one_rules = array();
-
 	/**
 	 * Regular expression replacements for the validation messages
 	 *
 	 * @var array
 	 */
 	private $regex_replacements = array();
-
 	/**
 	 * Rules to validate fields via regular expressions
 	 *
 	 * @var array
 	 */
 	private $regex_rules = array();
-
 	/**
 	 * The fields to be required
 	 *
 	 * @var array
 	 */
 	private $required_fields = array();
-
 	/**
 	 * String replacements for the validation messages
 	 *
 	 * @var array
 	 */
 	private $string_replacements = array();
-
 	/**
 	 * Rules for validating a field against a set of valid values
 	 *
 	 * @var array
 	 */
 	private $valid_values_rules = array();
-
-
+	
+	/**
+	 * Check if values are the same.
+	 * 
+	 * @var array
+	 */
+	 private $samecheck_rules = array()
 	/**
 	 * All requests that hit this method should be requests for callbacks
 	 *
@@ -198,8 +199,6 @@ class fValidation
 	{
 		return array($this, $method);
 	}
-
-
 	/**
 	 * Adds fields to be checked for 1/0, t/f, true/false, yes/no
 	 *
@@ -214,15 +213,11 @@ class fValidation
 		if (count($args) == 1 && is_array($args[0])) {
 			$args = $args[0];
 		}
-
 		foreach ($args as $arg) {
 			$this->addRegexRule($arg, '#^0|1|t|f|true|false|yes|no$#iD', 'Please enter Yes or No');
 		}
-
 		return $this;
 	}
-
-
 	/**
 	 * Adds a callback validation of a field, with a custom error message
 	 *
@@ -240,11 +235,8 @@ class fValidation
 			'callback' => $callback,
 			'message'  => $message
 		);
-
 		return $this;
 	}
-
-
 	/**
 	 * Adds fields to be conditionally required if another field has any value, or specific values
 	 *
@@ -260,17 +252,13 @@ class fValidation
 		if ($conditional_values !== NULL) {
 			settype($conditional_values, 'array');
 		}
-
 		$this->conditional_rules[] = array(
 			'main_fields'        => $main_fields,
 			'conditional_values' => $conditional_values,
 			'conditional_fields' => $conditional_fields
 		);
-
 		return $this;
 	}
-
-
 	/**
 	 * Adds form fields to the list of fields to be blank or a valid date
 	 *
@@ -287,13 +275,9 @@ class fValidation
 		if (count($args) == 1 && is_array($args[0])) {
 			$args = $args[0];
 		}
-
 		$this->date_fields = array_merge($this->date_fields, $args);
-
 		return $this;
 	}
-
-
 	/**
 	 * Adds form fields to the list of fields to be blank or a valid email address
 	 *
@@ -310,15 +294,11 @@ class fValidation
 		if (count($args) == 1 && is_array($args[0])) {
 			$args = $args[0];
 		}
-
 		foreach ($args as $arg) {
 			$this->addRegexRule($arg, fEmail::EMAIL_REGEX, 'Please enter an email address in the form name@example.com');
 		}
-
 		return $this;
 	}
-
-
 	/**
 	 * Adds form fields to be checked for email injection
 	 *
@@ -336,15 +316,11 @@ class fValidation
 		if (count($args) == 1 && is_array($args[0])) {
 			$args = $args[0];
 		}
-
 		foreach ($args as $arg) {
 			$this->addRegexRule($arg, '#^[^\r\n]*$#D', 'Line breaks are not allowed');
 		}
-
 		return $this;
 	}
-
-
 	/**
 	 * Add a file upload field to be validated using an fUpload object
 	 *
@@ -361,17 +337,13 @@ class fValidation
 			$uploader = $index;
 			$index    = NULL;
 		}
-
 		$this->file_upload_rules[] = array(
 			'field'    => $field,
 			'index'    => $index,
 			'uploader' => $uploader
 		);
-
 		return $this;
 	}
-
-
 	/**
 	 * Adds fields to be checked for float values
 	 *
@@ -386,15 +358,11 @@ class fValidation
 		if (count($args) == 1 && is_array($args[0])) {
 			$args = $args[0];
 		}
-
 		foreach ($args as $arg) {
 			$this->addRegexRule($arg, '#^([+\-]?)(?:\d*\.\d+|\d+\.?)(?:e([+\-]?)(\d+))?$#iD', 'Please enter a number');
 		}
-
 		return $this;
 	}
-
-
 	/**
 	 * Adds fields to be checked for integer values
 	 *
@@ -409,15 +377,11 @@ class fValidation
 		if (count($args) == 1 && is_array($args[0])) {
 			$args = $args[0];
 		}
-
 		foreach ($args as $arg) {
 			$this->addRegexRule($arg, '#^[+\-]?\d+(?:e[+]?\d+)?$#iD', 'Please enter a whole number');
 		}
-
 		return $this;
 	}
-
-
 	/**
 	 * Adds a rule to make sure at least one field of multiple has a value
 	 *
@@ -430,11 +394,8 @@ class fValidation
 	{
 		$fields = func_get_args();
 		$this->one_or_more_rules[] = $fields;
-
 		return $this;
 	}
-
-
 	/**
 	 * Adds a rule to make sure at exactly one field of multiple has a value
 	 *
@@ -447,11 +408,28 @@ class fValidation
 	{
 		$fields = func_get_args();
 		$this->only_one_rules[] = $fields;
-
 		return $this;
 	}
-
-
+	
+	/**
+	 * Adds a check if the same on set of fileds
+	 * 
+	 * @param string name
+	 * @param string field1
+	 * @param string field2
+	 * @return fValidation The validation object, to allow for  method chaining
+	 */
+	 public function addSameCheckRule($name, $field1, $field2)
+	{
+		if (!isset($this->samecheck_rules[$name])) {
+			$this->samecheck_rules[$name] = array();
+		}
+		$this->samecheck_rules[$name] = array(
+			'field1' => $field1,
+			'field2'  => $field2
+		);
+		return $this;
+	}
 	/**
 	 * Adds a call to [http://php.net/preg_replace `preg_replace()`] for each message
 	 *
@@ -472,11 +450,8 @@ class fValidation
 		} else {
 			$this->regex_replacements[$search] = $replace;
 		}
-
 		return $this;
 	}
-
-
 	/**
 	 * Adds regular expression validation of a field, with a custom error message
 	 *
@@ -494,11 +469,8 @@ class fValidation
 			'regex'   => $regex,
 			'message' => $message
 		);
-
 		return $this;
 	}
-
-
 	/**
 	 * Adds form fields to be required
 	 *
@@ -513,13 +485,9 @@ class fValidation
 		if (count($args) == 1 && is_array($args[0])) {
 			$args = $args[0];
 		}
-
 		$this->required_fields = array_merge($this->required_fields, $args);
-
 		return $this;
 	}
-
-
 	/**
 	 * Adds a call to [http://php.net/str_replace `str_replace()`] for each message
 	 *
@@ -536,11 +504,8 @@ class fValidation
 	public function addStringReplacement($search, $replace=NULL)
 	{
 		$this->string_replacements[$search] = $replace;
-
 		return $this;
 	}
-
-
 	/**
 	 * Adds form fields to the list of fields to be blank or a valid URL
 	 *
@@ -557,20 +522,15 @@ class fValidation
 		if (count($args) == 1 && is_array($args[0])) {
 			$args = $args[0];
 		}
-
 		$ip_regex       = '(?:(?:[01]?\d?\d|2[0-4]\d|25[0-5])\.){3}(?:[01]?\d?\d|2[0-4]\d|25[0-5])';
 		$hostname_regex = '[a-z]+(?:[a-z0-9\-]*[a-z0-9]\.?|\.)*';
 		$domain_regex   = '([a-z]+([a-z0-9\-]*[a-z0-9])?\.)+[a-z]{2,}';
 		$regex          = '#^(https?://(' . $ip_regex . '|' . $hostname_regex . ')(?=/|$)|' . $domain_regex . '(?=/|$)|/)#i';
-
 		foreach ($args as $arg) {
 			$this->addRegexRule($arg, $regex, 'Please enter a URL in the form http://www.example.com/page');
 		}
-
 		return $this;
 	}
-
-
 	/**
 	 * Adds a rule to make sure a field has one of the specified valid values
 	 *
@@ -584,11 +544,8 @@ class fValidation
 	public function addValidValuesRule($field, $valid_values)
 	{
 		$this->valid_values_rules[$field] = $this->castToStrings($valid_values);
-
 		return $this;
 	}
-
-
 	/**
 	 * Converts an array of values to string, recursively
 	 *
@@ -605,18 +562,14 @@ class fValidation
 				} else {
 					$casted_values[] = (string) $value;
 				}
-
 			} elseif (!is_array($value)) {
 				$casted_values[] = (string) $value;
-
 			} else {
 				$casted_values[] = $this->castToStrings($value);
 			}
 		}
 		return $casted_values;
 	}
-
-
 	/**
 	 * Runs all callback validation rules
 	 *
@@ -637,8 +590,6 @@ class fValidation
 			}
 		}
 	}
-
-
 	/**
 	 * Checks the conditional validation rules
 	 *
@@ -649,7 +600,6 @@ class fValidation
 	{
 		foreach ($this->conditional_rules as $rule) {
 			$check_for_missing_values = FALSE;
-
 			foreach ($rule['main_fields'] as $main_field) {
 				$matches_conditional_value = $rule['conditional_values'] !== NULL && in_array(fRequest::get($main_field), $rule['conditional_values']);
 				$has_some_value            = $rule['conditional_values'] === NULL && self::hasValue($main_field);
@@ -658,11 +608,9 @@ class fValidation
 					break;
 				}
 			}
-
 			if (!$check_for_missing_values) {
 				continue;
 			}
-
 			foreach ($rule['conditional_fields'] as $conditional_field) {
 				if (self::hasValue($conditional_field)) { continue; }
 				$messages[$conditional_field] = self::compose(
@@ -672,8 +620,6 @@ class fValidation
 			}
 		}
 	}
-
-
 	/**
 	 * Validates the date fields, requiring that any date fields that have a value that can be interpreted as a date
 	 *
@@ -696,8 +642,6 @@ class fValidation
 			}
 		}
 	}
-
-
 	/**
 	 * Checks the file upload validation rules
 	 *
@@ -717,8 +661,6 @@ class fValidation
 			}
 		}
 	}
-
-
 	/**
 	 * Ensures all of the one-or-more rules is met
 	 *
@@ -743,8 +685,6 @@ class fValidation
 			}
 		}
 	}
-
-
 	/**
 	 * Ensures all of the only-one rules is met
 	 *
@@ -775,8 +715,6 @@ class fValidation
 			}
 		}
 	}
-
-
 	/**
 	 * Runs all regex validation rules
 	 *
@@ -797,8 +735,6 @@ class fValidation
 			}
 		}
 	}
-
-
 	/**
 	 * Validates the required fields, adding any missing fields to the messages array
 	 *
@@ -816,8 +752,6 @@ class fValidation
 			}
 		}
 	}
-
-
 	/**
 	 * Runs all valid-values rules
 	 *
@@ -837,8 +771,25 @@ class fValidation
 			}
 		}
 	}
-
-
+	/**
+	 * Runs all callback validation rules
+	 * 
+	 * @param  array &$messages  The messages to display to the user
+	 * @return void
+	 */
+	private function checkSameFields(&$messages)
+	{
+            
+		foreach ($this->samecheck_rules as $name => $fields) {
+			if (fRequest::get($fields['field1']) != fRequest::get($fields['field2']))   ` {
+				$messages[$name] = self::compose(
+					'%s'.fValidationException::formatField($this->makeFieldName($fields["field2"])).'both fields need to be the same.',
+					fValidationException::formatField($this->makeFieldName($fields['field1']))
+				);
+                    }
+		}
+	}
+	
 	/**
 	 * Joins a multi-dimensional array recursively
 	 *
@@ -856,10 +807,8 @@ class fValidation
 				$joined[] = $value;
 			}
 		}
-
 		return join($glue, $joined);
 	}
-
 	/**
 	 * Creates the name for a field taking into account custom field names
 	 *
@@ -871,16 +820,13 @@ class fValidation
 		if (isset($this->field_names[$field])) {
 			return $this->field_names[$field];
 		}
-
 		$suffix = '';
 		$bracket_pos = strpos($field, '[');
 		if ($bracket_pos !== FALSE) {
 			$array_dereference = substr($field, $bracket_pos);
 			$field             = substr($field, 0, $bracket_pos);
-
 			preg_match_all('#(?<=\[)[^\[\]]+(?=\])#', $array_dereference, $array_keys, PREG_SET_ORDER);
 			$array_keys = array_map('current', $array_keys);
-
 			foreach ($array_keys as $array_key) {
 				if (is_numeric($array_key)) {
 					$suffix .= ' #' . ($array_key+1);
@@ -889,11 +835,8 @@ class fValidation
 				}
 			}
 		}
-
 		return fGrammar::humanize($field) . $suffix;
 	}
-
-
 	/**
 	 * Reorders an array of messages based on the requested order
 	 *
@@ -905,10 +848,8 @@ class fValidation
 		if (!$this->message_order) {
 			return $messages;
 		}
-
 		$ordered_items = array_fill(0, sizeof($this->message_order), array());
 		$other_items   = array();
-
 		foreach ($messages as $key => $message) {
 			foreach ($this->message_order as $num => $match_string) {
 				if (fUTF8::ipos($message, $match_string) !== FALSE) {
@@ -916,18 +857,14 @@ class fValidation
 					continue 2;
 				}
 			}
-
 			$other_items[$key] = $message;
 		}
-
 		$final_list = array();
 		foreach ($ordered_items as $ordered_item) {
 			$final_list = array_merge($final_list, $ordered_item);
 		}
 		return array_merge($final_list, $other_items);
 	}
-
-
 	/**
 	 * Allows overriding the default name used for a field in the error message
 	 *
@@ -947,11 +884,8 @@ class fValidation
 		} else {
 			$this->field_names[$field] = $name;
 		}
-
 		return $this;
 	}
-
-
 	/**
 	 * Allows setting the order that the individual errors in a message will be displayed
 	 *
@@ -969,14 +903,10 @@ class fValidation
 		if (sizeof($args) == 1 && is_array($args[0])) {
 			$args = $args[0];
 		}
-
 		uasort($args, array('self', 'sortMessageMatches'));
 		$this->message_order = $args;
-
 		return $this;
 	}
-
-
 	/**
 	 * Checks for required fields, email field formatting and email header injection using values previously set
 	 *
@@ -1001,9 +931,7 @@ class fValidation
 				'No fields or rules have been added for validation'
 			);
 		}
-
 		$messages = array();
-
 		$this->checkRequiredFields($messages);
 		$this->checkFileUploadRules($messages);
 		$this->checkConditionalRules($messages);
@@ -1013,7 +941,7 @@ class fValidation
 		$this->checkDateFields($messages);
 		$this->checkRegexRules($messages);
 		$this->checkCallbackRules($messages);
-
+		$this->checkSameFields($messages);
 		if ($this->regex_replacements) {
 			$messages = preg_replace(
 				array_keys($this->regex_replacements),
@@ -1028,16 +956,13 @@ class fValidation
 				$messages
 			);
 		}
-
 		$messages = $this->reorderMessages($messages);
-
 		if ($return_messages) {
 			if ($remove_field_names) {
 				$messages = fValidationException::removeFieldNames($messages);
 			}
 			return $messages;
 		}
-
 		if ($messages) {
 			throw new fValidationException(
 				'The following problems were found:',
@@ -1046,9 +971,6 @@ class fValidation
 		}
 	}
 }
-
-
-
 /**
  * Copyright (c) 2007-2011 Will Bond <will@flourishlib.com>
  *
@@ -1070,3 +992,4 @@ class fValidation
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+
