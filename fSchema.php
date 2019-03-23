@@ -1181,19 +1181,19 @@ class fSchema
 			$row    = $result->fetchRow();
 
 			// Primary keys
-			preg_match_all('/PRIMARY KEY\s+\("(.*?)"\),?\n/U', $row['Create Table'], $matches, PREG_SET_ORDER);
+			preg_match_all('/PRIMARY KEY\s+\(["`](.*?)["`]\),?\n/U', $row['Create Table'], $matches, PREG_SET_ORDER);
 			if (!empty($matches)) {
 				$keys[$table]['primary'] = explode('","', strtolower($matches[0][1]));
 			}
 
 			// Unique keys
-			preg_match_all('/UNIQUE KEY\s+"([^"]+)"\s+\("(.*?)"\),?\n/U', $row['Create Table'], $matches, PREG_SET_ORDER);
+			preg_match_all('/UNIQUE KEY\s+["`]([^"`]+)["`]\s+\(["`](.*?)["`]\).*,?\n/U', $row['Create Table'], $matches, PREG_SET_ORDER);
 			foreach ($matches as $match) {
 				$keys[$table]['unique'][] = explode('","', strtolower($match[2]));
 			}
 
 			// Foreign keys
-			preg_match_all('#FOREIGN KEY \("([^"]+)"\) REFERENCES "([^"]+)" \("([^"]+)"\)(?:\sON\sDELETE\s(SET\sNULL|SET\sDEFAULT|CASCADE|NO\sACTION|RESTRICT))?(?:\sON\sUPDATE\s(SET\sNULL|SET\sDEFAULT|CASCADE|NO\sACTION|RESTRICT))?#', $row['Create Table'], $matches, PREG_SET_ORDER);
+			preg_match_all('#FOREIGN KEY \(["`]([^"`]+)["`]\) REFERENCES ["`]([^"`]+)["`] \(["`]([^"`]+)["`]\)(?:\sON\sDELETE\s(SET\sNULL|SET\sDEFAULT|CASCADE|NO\sACTION|RESTRICT))?(?:\sON\sUPDATE\s(SET\sNULL|SET\sDEFAULT|CASCADE|NO\sACTION|RESTRICT))?#', $row['Create Table'], $matches, PREG_SET_ORDER);
 			foreach ($matches as $match) {
 				$temp = array(
 					'column'         => strtolower($match[1]),
