@@ -1,5 +1,5 @@
 {
-    "name": "flourish/flourish",
+    "name": "imarc/flourish",
     "description": "A collection of classes for general web development, with a particular focus on compatibility, portability and security",
     "homepage": "http://flourishlib.com/",
     "type": "library",
