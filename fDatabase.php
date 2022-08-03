@@ -754,7 +754,10 @@ class fDatabase
 				$options['LoginTimeout'] = $this->timeout;
 			}
 
-			$this->connection = sqlsrv_connect($this->host . ',' . $this->port, $options);
+			$this->connection = sqlsrv_connect($this->host . ',' . $this->port, $options + [
+				'Encrypt' => TRUE,
+				'TrustServerCertificate' => TRUE
+			]);
 
 			if ($this->connection === FALSE) {
 				$errors = sqlsrv_errors();
