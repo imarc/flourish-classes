@@ -1131,10 +1131,12 @@ class fCore
 				}
 
 			} else {
-				$handle = fopen($destination, 'a');
-				fwrite($handle, $subject . "\n\n");
-				fwrite($handle, $message . "\n\n");
-				fclose($handle);
+                $handle = fopen($destination, 'a');
+                if (is_resource($handle)) {
+                    fwrite($handle, $subject . "\n\n");
+                    fwrite($handle, $message . "\n\n");
+                    fclose($handle);
+                }
 			}
 		}
 	}
