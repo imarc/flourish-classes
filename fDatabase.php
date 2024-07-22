@@ -2403,7 +2403,7 @@ class fDatabase
 		$this->handleErrors(fCore::stopErrorCapture());
 
 		// The mssql extension will sometimes not return FALSE even if there are errors
-		if (strlen($this->error)) {
+		if (strlen((string) $this->error)) {
 			$result = FALSE;
 		}
 
