@@ -1616,31 +1616,64 @@ class fSchema
 		);
 
 		// PgSQL required this complicated SQL to get the column info
-		$sql = "SELECT
-						LOWER(pg_attribute.attname)                                 AS column,
-						format_type(pg_attribute.atttypid, pg_attribute.atttypmod)  AS data_type,
-						pg_attribute.attnotnull                                     AS not_null,
-						pg_attrdef.adsrc                                            AS default,
-						pg_get_constraintdef(pg_constraint.oid)                     AS constraint,
-						col_description(pg_class.oid, pg_attribute.attnum)          AS comment
-					FROM
-						pg_attribute LEFT JOIN
-						pg_class ON pg_attribute.attrelid = pg_class.oid LEFT JOIN
-						pg_namespace ON pg_class.relnamespace = pg_namespace.oid LEFT JOIN
-						pg_type ON pg_type.oid = pg_attribute.atttypid LEFT JOIN
-						pg_constraint ON pg_constraint.conrelid = pg_class.oid AND
-										 pg_attribute.attnum = ANY (pg_constraint.conkey) AND
-										 pg_constraint.contype = 'c' LEFT JOIN
-						pg_attrdef ON pg_class.oid = pg_attrdef.adrelid AND
-									  pg_attribute.attnum = pg_attrdef.adnum
-					WHERE
-						NOT pg_attribute.attisdropped AND
-						LOWER(pg_class.relname) = %s AND
-						LOWER(pg_namespace.nspname) = %s AND
-						pg_type.typname NOT IN ('oid', 'cid', 'xid', 'cid', 'xid', 'tid')
-					ORDER BY
-						pg_attribute.attnum,
-						pg_constraint.contype";
+		if ((float) $version >= 10) {
+			// Version 10 and up as Postgres added the "identity" attribute for
+			// auto incrementing keys.
+			$sql = "SELECT
+							pg_attribute.attname										AS column,
+							format_type(pg_attribute.atttypid, pg_attribute.atttypmod)	AS data_type,
+							pg_attribute.attnotnull										AS not_null,
+							pg_attribute.attidentity									AS identity,
+							pg_get_expr(pg_attrdef.adbin, pg_attrdef.adrelid)			AS default,
+							pg_get_constraintdef(pg_constraint.oid)						AS constraint
+						FROM
+							pg_attribute LEFT JOIN
+							pg_class ON pg_attribute.attrelid = pg_class.oid LEFT JOIN
+							pg_namespace ON pg_class.relnamespace = pg_namespace.oid LEFT JOIN
+							pg_type ON pg_type.oid = pg_attribute.atttypid LEFT JOIN
+							pg_constraint ON pg_constraint.conrelid = pg_class.oid AND
+											 pg_attribute.attnum = ANY (pg_constraint.conkey) AND
+											 pg_constraint.contype = 'c' LEFT JOIN
+							pg_attrdef ON pg_class.oid = pg_attrdef.adrelid AND
+										  pg_attribute.attnum = pg_attrdef.adnum
+						WHERE
+							NOT pg_attribute.attisdropped AND
+							pg_class.relname = %s AND
+							pg_namespace.nspname = %s AND
+							pg_type.typname NOT IN ('oid', 'cid', 'xid', 'cid', 'xid', 'tid')
+						ORDER BY
+							pg_attribute.attnum,
+							pg_constraint.contype";
+		} else {
+			// Versions 10 and below don't have the identity attribute so just
+			// set it as false
+			$sql = "SELECT
+							pg_attribute.attname										AS column,
+							format_type(pg_attribute.atttypid, pg_attribute.atttypmod)	AS data_type,
+							pg_attribute.attnotnull										AS not_null,
+							false									 AS identity,
+							pg_get_expr(pg_attrdef.adbin, pg_attrdef.adrelid)			AS default,
+							pg_get_constraintdef(pg_constraint.oid)						AS constraint
+						FROM
+							pg_attribute LEFT JOIN
+							pg_class ON pg_attribute.attrelid = pg_class.oid LEFT JOIN
+							pg_namespace ON pg_class.relnamespace = pg_namespace.oid LEFT JOIN
+							pg_type ON pg_type.oid = pg_attribute.atttypid LEFT JOIN
+							pg_constraint ON pg_constraint.conrelid = pg_class.oid AND
+											 pg_attribute.attnum = ANY (pg_constraint.conkey) AND
+											 pg_constraint.contype = 'c' LEFT JOIN
+							pg_attrdef ON pg_class.oid = pg_attrdef.adrelid AND
+										  pg_attribute.attnum = pg_attrdef.adnum
+						WHERE
+							NOT pg_attribute.attisdropped AND
+							pg_class.relname = %s AND
+							pg_namespace.nspname = %s AND
+							pg_type.typname NOT IN ('oid', 'cid', 'xid', 'cid', 'xid', 'tid')
+						ORDER BY
+							pg_attribute.attnum,
+							pg_constraint.contype";
+		}
+
 		$result = $this->database->query($sql, strtolower($table), strtolower($schema));
 
 		foreach ($result as $row) {
@@ -1702,8 +1735,12 @@ class fSchema
 				}
 			}
 
+
+            // handle postgres v10+ identity
+            if ($row['identity'] === 'd') {
+                $info['auto_increment'] = true;
 			// Handle default values and serial data types
-			if ($info['type'] == 'integer' && stripos($row['default'], 'nextval(') !== FALSE) {
+		    } elseif ($info['type'] == 'integer' && stripos($row['default'], 'nextval(') !== FALSE) {
 				$info['auto_increment'] = TRUE;
 
 			} elseif ($row['default'] !== NULL) {
@@ -1752,91 +1789,80 @@ class fSchema
 			$keys[$table]['foreign'] = array();
 		}
 
-		$sql  = "(
-				SELECT
-					LOWER(s.nspname) AS \"schema\",
-					LOWER(t.relname) AS \"table\",
-					con.conname AS constraint_name,
-					CASE con.contype
-						WHEN 'f' THEN 'foreign'
-						WHEN 'p' THEN 'primary'
-						WHEN 'u' THEN 'unique'
-					END AS type,
-					LOWER(col.attname) AS column,
-					LOWER(fs.nspname) AS foreign_schema,
-					LOWER(ft.relname) AS foreign_table,
-					LOWER(fc.attname) AS foreign_column,
-					CASE con.confdeltype
-						WHEN 'c' THEN 'cascade'
-						WHEN 'a' THEN 'no_action'
-						WHEN 'r' THEN 'restrict'
-						WHEN 'n' THEN 'set_null'
-						WHEN 'd' THEN 'set_default'
-					END AS on_delete,
-					CASE con.confupdtype
-						WHEN 'c' THEN 'cascade'
-						WHEN 'a' THEN 'no_action'
-						WHEN 'r' THEN 'restrict'
-						WHEN 'n' THEN 'set_null'
-						WHEN 'd' THEN 'set_default'
-					END AS on_update,
-					CASE WHEN con.conkey IS NOT NULL THEN position('-'||col.attnum||'-' in '-'||array_to_string(con.conkey, '-')||'-') ELSE 0 END AS column_order
-				FROM
-					pg_attribute AS col INNER JOIN
-					pg_class AS t ON
-						col.attrelid = t.oid INNER JOIN
-					pg_namespace AS s ON
-						t.relnamespace = s.oid INNER JOIN
-					pg_constraint AS con ON
-						col.attnum = ANY (con.conkey) AND
-						con.conrelid = t.oid LEFT JOIN
-					pg_class AS ft ON
-						con.confrelid = ft.oid LEFT JOIN
-					pg_namespace AS fs ON
-						ft.relnamespace = fs.oid LEFT JOIN
-					pg_attribute AS fc ON
-						fc.attnum = ANY (con.confkey) AND
-						ft.oid = fc.attrelid
-				WHERE
-					NOT col.attisdropped AND
-					(con.contype = 'p' OR
-					con.contype = 'f' OR
-					con.contype = 'u')
+		$sql = "(
+				 SELECT
+						 s.nspname AS \"schema\",
+						 t.relname AS \"table\",
+						 con.conname AS constraint_name,
+						 CASE con.contype
+							 WHEN 'f' THEN 'foreign'
+							 WHEN 'p' THEN 'primary'
+							 WHEN 'u' THEN 'unique'
+						 END AS type,
+						 col.attname AS column,
+						 fs.nspname AS foreign_schema,
+						 ft.relname AS foreign_table,
+						 fc.attname AS foreign_column,
+						 CASE con.confdeltype
+							 WHEN 'c' THEN 'cascade'
+							 WHEN 'a' THEN 'no_action'
+							 WHEN 'r' THEN 'restrict'
+							 WHEN 'n' THEN 'set_null'
+							 WHEN 'd' THEN 'set_default'
+						 END AS on_delete,
+						 CASE con.confupdtype
+							 WHEN 'c' THEN 'cascade'
+							 WHEN 'a' THEN 'no_action'
+							 WHEN 'r' THEN 'restrict'
+							 WHEN 'n' THEN 'set_null'
+							 WHEN 'd' THEN 'set_default'
+						 END AS on_update,
+						CASE WHEN con.conkey IS NOT NULL THEN position('-'||col.attnum||'-' in '-'||array_to_string(con.conkey, '-')||'-') ELSE 0 END AS column_order
+					 FROM
+						 pg_attribute AS col INNER JOIN
+						 pg_class AS t ON col.attrelid = t.oid INNER JOIN
+						 pg_namespace AS s ON t.relnamespace = s.oid INNER JOIN
+						 pg_constraint AS con ON (col.attnum = ANY (con.conkey) AND
+												  con.conrelid = t.oid) LEFT JOIN
+						 pg_class AS ft ON con.confrelid = ft.oid LEFT JOIN
+						 pg_namespace AS fs ON ft.relnamespace = fs.oid LEFT JOIN
+						 pg_attribute AS fc ON (fc.attnum = ANY (con.confkey) AND
+												ft.oid = fc.attrelid)
+					 WHERE
+						s.nspname NOT IN ('pg_catalog', 'pg_toast') AND
+						NOT col.attisdropped AND
+						(
+							con.contype = 'p' OR
+							con.contype = 'f' OR
+							con.contype = 'u'
+						)
 				) UNION (
 				SELECT
-					LOWER(n.nspname) AS \"schema\",
-					LOWER(t.relname) AS \"table\",
-					ic.relname AS constraint_name,
-					'unique' AS type,
-					LOWER(col.attname) AS column,
-					NULL AS foreign_schema,
-					NULL AS foreign_table,
-					NULL AS foreign_column,
-					NULL AS on_delete,
-					NULL AS on_update,
-					CASE WHEN ind.indkey IS NOT NULL THEN position('-'||col.attnum||'-' in '-'||array_to_string(ind.indkey, '-')||'-') ELSE 0 END AS column_order
-				FROM
-					pg_class AS t INNER JOIN
-					pg_index AS ind ON
-						ind.indrelid = t.oid INNER JOIN
-					pg_namespace AS n ON
-						t.relnamespace = n.oid INNER JOIN
-					pg_class AS ic ON
-						ind.indexrelid = ic.oid LEFT JOIN
-					pg_constraint AS con ON
-						con.conrelid = t.oid AND
-						con.contype = 'u' AND
-						con.conname = ic.relname INNER JOIN
-					pg_attribute AS col ON
-						col.attrelid = t.oid AND
-						col.attnum = ANY (ind.indkey)
-				WHERE
-					n.nspname NOT IN ('pg_catalog', 'pg_toast') AND
-					indisunique = TRUE AND
-					indisprimary = FALSE AND
-					con.oid IS NULL AND
-					0 != ALL ((ind.indkey)::int[])
-			) ORDER BY 1, 2, 4, 3, 11";
+						n.nspname AS \"schema\",
+						t.relname AS \"table\",
+						ic.relname AS constraint_name,
+						'unique' AS type,
+						col.attname AS column,
+						NULL AS foreign_schema,
+						NULL AS foreign_table,
+						NULL AS foreign_column,
+						NULL AS on_delete,
+						NULL AS on_update,
+						CASE WHEN ind.indkey IS NOT NULL THEN position('-'||col.attnum||'-' in '-'||array_to_string(ind.indkey, '-')||'-') ELSE 0 END AS column_order
+					FROM
+						pg_class AS t INNER JOIN
+						pg_index AS ind ON ind.indrelid = t.oid INNER JOIN
+						pg_namespace AS n ON t.relnamespace = n.oid INNER JOIN
+						pg_class AS ic ON ind.indexrelid = ic.oid LEFT JOIN
+						pg_constraint AS con ON con.conrelid = t.oid AND con.contype = 'u' AND con.conname = ic.relname INNER JOIN
+						pg_attribute AS col ON col.attrelid = t.oid AND col.attnum = ANY (ind.indkey)
+					WHERE
+						n.nspname NOT IN ('pg_catalog', 'pg_toast') AND
+						indisunique = TRUE AND
+						indisprimary = FALSE AND
+						con.oid IS NULL AND
+						0 != ALL ((ind.indkey)::int[])
+				) ORDER BY 1, 2, 4, 3, 11";
 
 		$result = $this->database->query($sql);
 
