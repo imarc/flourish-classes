@@ -1615,6 +1615,8 @@ class fSchema
 			'bigserial' => array('min' => new fNumber('-9223372036854775808'),  'max' => new fNumber('9223372036854775807'))
 		);
 
+		$version = $this->database->getVersion();
+
 		// PgSQL required this complicated SQL to get the column info
 		if ((float) $version >= 10) {
 			// Version 10 and up as Postgres added the "identity" attribute for

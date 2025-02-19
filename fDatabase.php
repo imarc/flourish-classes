@@ -1753,7 +1753,7 @@ class fDatabase
 				break;
 
 			case 'postgresql':
-				$sql = "SELECT regexp_replace(version(), E'^PostgreSQL +([0-9]+(\\\\.[0-9]+)*).*$', E'\\\\1')";
+				$sql = "SELECT regexp_replace(version(), '^PostgreSQL ([0-9]+(\\.[0-9]+)*).*$', '\\1')";
 				break;
 
 			case 'sqlite':
@@ -1849,18 +1849,38 @@ class fDatabase
 
 		if ($this->type == 'postgresql') {
 			if (!isset($this->schema_info['sequences'])) {
-				$sql = "SELECT
-								pg_namespace.nspname AS \"schema\",
-								pg_class.relname AS \"table\",
-								pg_attribute.attname AS column
+				if ((float) $this->getVersion() < 12) {
+					$sql = "SELECT
+									pg_namespace.nspname AS \"schema\",
+									pg_class.relname AS \"table\",
+									pg_attribute.attname AS column
+								FROM
+									pg_attribute INNER JOIN
+									pg_class ON pg_attribute.attrelid = pg_class.oid INNER JOIN
+									pg_namespace ON pg_class.relnamespace = pg_namespace.oid INNER JOIN
+									pg_attrdef ON pg_class.oid = pg_attrdef.adrelid AND pg_attribute.attnum = pg_attrdef.adnum
+								WHERE
+									NOT pg_attribute.attisdropped AND
+									pg_attrdef.adsrc LIKE 'nextval(%'";
+				} else {
+					$sql = <<<SQL
+							SELECT
+								n.nspname AS "schema",
+								c.relname AS "table",
+								a.attname AS column
 							FROM
-								pg_attribute INNER JOIN
-								pg_class ON pg_attribute.attrelid = pg_class.oid INNER JOIN
-								pg_namespace ON pg_class.relnamespace = pg_namespace.oid INNER JOIN
-								pg_attrdef ON pg_class.oid = pg_attrdef.adrelid AND pg_attribute.attnum = pg_attrdef.adnum
+								pg_attribute a
+								INNER JOIN pg_class c ON a.attrelid = c.oid
+								INNER JOIN pg_namespace n ON c.relnamespace = n.oid
+								LEFT JOIN pg_attrdef d ON c.oid = d.adrelid AND a.attnum = d.adnum
 							WHERE
-								NOT pg_attribute.attisdropped AND
-								pg_attrdef.adsrc LIKE 'nextval(%'";
+								NOT a.attisdropped
+								AND (
+									pg_get_expr(d.adbin, d.adrelid) LIKE 'nextval(%'
+									OR a.attidentity != ''
+								);
+					SQL;
+				}
 
 				$this->schema_info['sequences'] = array();
 
