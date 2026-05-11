@@ -52,6 +52,13 @@ class fImage extends fFile
 	static private $imagemagick_version = NULL;
 
 	/**
+	 * The ImageMagick CLI command to execute
+	 *
+	 * @var string
+	 */
+	static private $imagemagick_command = 'convert';
+
+	/**
 	 * The processor to use for the image manipulation
 	 *
 	 * @var string
@@ -75,7 +82,12 @@ class fImage extends fFile
 			);
 		}
 
-		$binary = $path . (fCore::checkOS('windows') ? 'convert.exe' : 'convert');
+		$command = self::$imagemagick_command;
+		if (fCore::checkOS('windows') && $command == 'convert') {
+			$binary = $path . 'convert.exe';
+		} else {
+			$binary = $path . $command;
+		}
 
 		if (self::isOpenBaseDirRestricted($path)) {
 			exec($binary . ' -version', $executable);
@@ -91,7 +103,7 @@ class fImage extends fFile
 		}
 
 		// determine version
-		exec($binary, $output);
+		exec($binary . ' -version', $output);
 		if (preg_match('/\d+\.\d+\.\d+/', $output[0], $matches)) {
 			self::$imagemagick_version = $matches[0];
 		}
@@ -194,15 +206,31 @@ class fImage extends fFile
 							continue;
 						}
 						if (self::isOpenBaseDirRestricted($location)) {
-							exec($location . 'convert -version', $output);
-							if ($output) {
+							$output = array();
+							exec($location . 'magick -version', $output, $return_value);
+							if ($return_value === 0) {
 								$found = TRUE;
 								$path  = $location;
+								self::$imagemagick_command = 'magick';
 								break;
 							}
+							$output = array();
+							exec($location . 'convert -version', $output, $return_value);
+							if ($return_value === 0) {
+								$found = TRUE;
+								$path  = $location;
+								self::$imagemagick_command = 'convert';
+								break;
+							}
+						} elseif (is_executable($location . 'magick')) {
+							$found = TRUE;
+							$path  = $location;
+							self::$imagemagick_command = 'magick';
+							break;
 						} elseif (is_executable($location . 'convert')) {
 							$found = TRUE;
 							$path  = $location;
+							self::$imagemagick_command = 'convert';
 							break;
 						}
 					}
@@ -514,6 +542,7 @@ class fImage extends fFile
 	{
 		self::$imagemagick_dir      = NULL;
 		self::$imagemagick_temp_dir = NULL;
+		self::$imagemagick_command  = 'convert';
 		self::$processor            = NULL;
 	}
 
@@ -1149,10 +1178,10 @@ class fImage extends fFile
 	private function processWithImageMagick($output_file, $jpeg_quality)
 	{
 		$type = self::getImageType($this->file);
-		if (fCore::checkOS('windows')) {
+		if (fCore::checkOS('windows') && self::$imagemagick_command == 'convert') {
 			$command_line  = str_replace(' ', '" "', self::$imagemagick_dir . 'convert.exe');
 		} else {
-			$command_line  = escapeshellarg(self::$imagemagick_dir . 'convert');
+			$command_line  = escapeshellarg(self::$imagemagick_dir . self::$imagemagick_command);
 		}
 
 		if (self::$imagemagick_temp_dir) {
