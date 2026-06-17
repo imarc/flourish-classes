@@ -92,6 +92,29 @@ class fEmail
 	 */
 	static private $popen_sendmail = FALSE;
 
+	/**
+	 * The fSMTP connection to use for all instances of fEmail.
+	 * @var fSMTP
+	 */
+	static private $connection = NULL;
+
+	/**
+	 * Sets the fSMTP connection all instances of fEmail will use.
+	 * @var  fSMTP
+	 */
+	static public function setConnection(fSMTP $connection)
+	{
+		static::$connection = $connection;
+	}
+
+	/**
+	 * returns the fSMTP connection or null if it's not set.
+	 * @return null|fSMTP
+	 */
+	public function getConnection()
+	{
+		return static::$connection;
+	}
 
 	/**
 	 * Turns a name and email into a `"name" <email>` string, or just `email` if no name is provided
@@ -1336,6 +1359,10 @@ class fEmail
 	public function send($connection=NULL)
 	{
 		$this->validate();
+
+		if (static::getConnection() && !$connection) {
+			$connection = static::getConnection();
+		}
 
 		$message_id = '<' . fCryptography::randomString(10, 'hexadecimal') . '.' . time() . '@' . self::getFQDN() . '>';
 
